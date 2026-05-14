@@ -1,149 +1,117 @@
-import axios from 'axios'
-
 /**
- * Base API URL.
- * Later this should come from environment variables.
+ * api.js — centralised API client
+ * All backend microservice calls go through here.
  */
-const API_URL = 'http://localhost:3001'
 
-/**
- * Shared axios instance.
- */
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+const BASE = {
+  auth:         'http://localhost:8001',
+  employees:    'http://localhost:8002',
+  reviews:      'http://localhost:8003',
+  competencies: 'http://localhost:8004',
+  training:     'http://localhost:8005',
+  plans:        'http://localhost:8006',
+}
 
-/**
- * Automatically attach JWT token to requests.
- */
-api.interceptors.request.use((config) => {
+function headers() {
   const token = localStorage.getItem('token')
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
-
-  return config
-})
-
-/**
- * Auto logout on unauthorized responses.
- */
-api.interceptors.response.use(
-  (response) => response,
-
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.clear()
-      window.location.href = '/'
-    }
-
-    return Promise.reject(error)
-  }
-)
-
-/**
- * =========================
- * AUTH APIs
- * =========================
- */
-
-export const login = (email, password) => {
-  return api.post('/auth/login', {
-    email,
-    password
-  })
 }
 
-/**
- * =========================
- * EMPLOYEE APIs
- * =========================
- */
-
-export const getEmployees = (params = {}) => {
-  return api.get('/employees', { params })
+async function request(url, options = {}) {
+  const res = await fetch(url, { headers: headers(), ...options })
+  const json = await res.json()
+  return { data: json, status: res.status, ok: res.ok }
 }
 
-export const getEmployeeById = (id) => {
-  return api.get(`/employees/${id}`)
-}
+// ── Auth ────────────────────────────────────────────────────────────────────
+export const login  = (email, password) =>
+  request(`${BASE.auth}/login`,  { method: 'POST', body: JSON.stringify({ email, password }) })
 
-export const createEmployee = (data) => {
-  return api.post('/employees', data)
-}
+export const getMe  = () =>
+  request(`${BASE.auth}/me`)
 
-export const updateEmployee = (id, data) => {
-  return api.put(`/employees/${id}`, data)
-}
+// ── Employees ───────────────────────────────────────────────────────────────
+export const getEmployees      = (params = '') =>
+  request(`${BASE.employees}/employees${params}`)
 
-export const deleteEmployee = (id) => {
-  return api.delete(`/employees/${id}`)
-}
+export const getEmployee       = (id) =>
+  request(`${BASE.employees}/employees/${id}`)
 
-/**
- * =========================
- * REVIEW APIs
- * =========================
- */
+export const createEmployee    = (data) =>
+  request(`${BASE.employees}/employees`, { method: 'POST', body: JSON.stringify(data) })
 
-export const getReviews = (params = {}) => {
-  return api.get('/reviews', { params })
-}
+export const updateEmployee    = (id, data) =>
+  request(`${BASE.employees}/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 
-export const createReview = (data) => {
-  return api.post('/reviews', data)
-}
+export const deleteEmployee    = (id) =>
+  request(`${BASE.employees}/employees/${id}`, { method: 'DELETE' })
 
-/**
- * =========================
- * COMPETENCY APIs
- * =========================
- */
+// ── Reviews ─────────────────────────────────────────────────────────────────
+export const getReviews        = () =>
+  request(`${BASE.reviews}/reviews`)
 
-export const getCompetencies = () => {
-  return api.get('/competencies')
-}
+export const createReview      = (data) =>
+  request(`${BASE.reviews}/reviews`, { method: 'POST', body: JSON.stringify(data) })
 
-export const getSkillGaps = () => {
-  return api.get('/competencies/gaps')
-}
+export const updateReview      = (id, data) =>
+  request(`${BASE.reviews}/reviews/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 
-/**
- * =========================
- * DEVELOPMENT PLAN APIs
- * =========================
- */
+export const deleteReview      = (id) =>
+  request(`${BASE.reviews}/reviews/${id}`, { method: 'DELETE' })
 
-export const getPlans = () => {
-  return api.get('/plans')
-}
+export const getAttritionRisk  = () =>
+  request(`${BASE.reviews}/reviews/attrition-risk`)
 
-export const getPromotionReady = () => {
-  return api.get('/plans/promotion-ready')
-}
+export const generateAiSummary = (id) =>
+  request(`${BASE.reviews}/reviews/${id}/ai-summary`, { method: 'POST' })
 
-/**
- * =========================
- * TRAINING APIs
- * =========================
- */
+// ── Competencies ─────────────────────────────────────────────────────────────
+export const getCompetencies      = () =>
+  request(`${BASE.competencies}/competencies`)
 
-export const getTrainingRecords = () => {
-  return api.get('/training')
-}
+export const createCompetency     = (data) =>
+  request(`${BASE.competencies}/competencies`, { method: 'POST', body: JSON.stringify(data) })
 
-/**
- * =========================
- * ATTRITION ANALYTICS
- * =========================
- */
+export const updateCompetency     = (id, data) =>
+  request(`${BASE.competencies}/competencies/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 
-export const getAttritionRisk = (employeeId) => {
-  return api.get(`/reviews/trends/${employeeId}`)
-}
+export const deleteCompetency     = (id) =>
+  request(`${BASE.competencies}/competencies/${id}`, { method: 'DELETE' })
 
-export default api
+export const getSkillDistribution = () =>
+  request(`${BASE.competencies}/competencies/skill-distribution`)
+
+export const getCriticalGaps      = () =>
+  request(`${BASE.competencies}/competencies/critical-gaps`)
+
+// ── Training ─────────────────────────────────────────────────────────────────
+export const getTrainingRecords = () =>
+  request(`${BASE.training}/training`)
+
+export const createTraining     = (data) =>
+  request(`${BASE.training}/training`, { method: 'POST', body: JSON.stringify(data) })
+
+export const updateTraining     = (id, data) =>
+  request(`${BASE.training}/training/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+
+export const deleteTraining     = (id) =>
+  request(`${BASE.training}/training/${id}`, { method: 'DELETE' })
+
+// ── Plans ────────────────────────────────────────────────────────────────────
+export const getPlans           = () =>
+  request(`${BASE.plans}/plans`)
+
+export const createPlan         = (data) =>
+  request(`${BASE.plans}/plans`, { method: 'POST', body: JSON.stringify(data) })
+
+export const updatePlan         = (id, data) =>
+  request(`${BASE.plans}/plans/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+
+export const deletePlan         = (id) =>
+  request(`${BASE.plans}/plans/${id}`, { method: 'DELETE' })
+
+export const getPromotionReady  = () =>
+  request(`${BASE.plans}/plans/promotion-ready`)
