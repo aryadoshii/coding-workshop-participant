@@ -8,12 +8,10 @@ from psycopg import connect
 
 logger = logging.getLogger()
 
-# Module-level connection for pooling across Lambda invocations
 PG_CONN = None
 
 
 def _get_connection(config):
-    """Get or create a PostgreSQL connection. Reuses connection across invocations."""
     global PG_CONN
     if PG_CONN is None or PG_CONN.closed:
         PG_CONN = connect(config)
@@ -21,12 +19,6 @@ def _get_connection(config):
 
 
 def get_user_by_email(config, email):
-    """
-    Look up a user by email address.
-
-    Returns:
-        tuple: (id, email, password_hash, role) or None if not found
-    """
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -38,17 +30,11 @@ def get_user_by_email(config, email):
             return cur.fetchone()
     except Exception as e:
         logger.error("Database error in get_user_by_email: %s", str(e))
-        PG_CONN = None  # reset on error
+        PG_CONN = None
         raise
 
 
 def get_user_by_id(config, user_id):
-    """
-    Look up a user by ID.
-
-    Returns:
-        tuple: (id, email, role) or None if not found
-    """
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -65,12 +51,6 @@ def get_user_by_id(config, user_id):
 
 
 def create_user(config, email, password_hash, role):
-    """
-    Create a new user.
-
-    Returns:
-        int: The new user's ID
-    """
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -90,5 +70,27 @@ def create_user(config, email, password_hash, role):
         logger.error("Database error in create_user: %s", str(e))
         if PG_CONN:
             PG_CONN.rollback()
+        PG_CONN = None
+        raise
+
+
+def get_employee_by_user_id(config, user_id):
+    global PG_CONN
+    try:
+        conn = _get_connection(config)
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, first_name, last_name,
+                       department, manager_id
+                FROM employees
+                WHERE user_id = %s;
+            """, (user_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            columns = [desc[0] for desc in cur.description]
+            return dict(zip(columns, row))
+    except Exception as e:
+        logger.error("Error in get_employee_by_user_id: %s", str(e))
         PG_CONN = None
         raise

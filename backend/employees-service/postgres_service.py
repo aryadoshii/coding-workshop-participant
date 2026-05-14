@@ -18,11 +18,7 @@ def _get_connection(config):
     return PG_CONN
 
 
-def get_all_employees(config, department=None, status=None, search=None):
-    """
-    Get all employees with optional filters.
-    Supports: department filter, status filter, name/email search.
-    """
+def get_all_employees(config, department=None, status=None, search=None, manager_id=None):
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -51,6 +47,10 @@ def get_all_employees(config, department=None, status=None, search=None):
                 query += " AND (e.first_name ILIKE %s OR e.last_name ILIKE %s OR e.email ILIKE %s)"
                 params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
 
+            if manager_id:
+                query += " AND e.manager_id = %s"
+                params.append(manager_id)
+
             query += " ORDER BY e.created_at DESC;"
 
             cur.execute(query, params)
@@ -65,7 +65,6 @@ def get_all_employees(config, department=None, status=None, search=None):
 
 
 def get_employee_by_id(config, employee_id):
-    """Get a single employee by ID with manager info."""
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -92,7 +91,6 @@ def get_employee_by_id(config, employee_id):
 
 
 def create_employee(config, data):
-    """Create a new employee. Returns the new employee's ID."""
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -125,7 +123,6 @@ def create_employee(config, data):
 
 
 def update_employee(config, employee_id, data):
-    """Update an existing employee's details."""
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -163,7 +160,6 @@ def update_employee(config, employee_id, data):
 
 
 def delete_employee(config, employee_id):
-    """Delete an employee by ID."""
     global PG_CONN
     try:
         conn = _get_connection(config)
@@ -184,7 +180,6 @@ def delete_employee(config, employee_id):
 
 
 def get_departments(config):
-    """Get list of all unique departments."""
     global PG_CONN
     try:
         conn = _get_connection(config)
